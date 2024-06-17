@@ -4,3 +4,12 @@ export interface User {
   email: string;
   phone: string;
 }
+
+export interface UserData extends Omit<User, 'id'> {
+  username: string;
+}
+
+export interface UserEdit {
+  name: string;
+  phone: string;
+}

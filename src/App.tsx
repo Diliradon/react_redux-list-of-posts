@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import 'bulma/bulma.sass';
 import '@fortawesome/fontawesome-free/css/all.css';
 import './App.scss';
@@ -10,23 +10,24 @@ import { UserSelector } from './components/UserSelector';
 import { Loader } from './components/Loader';
 import { User } from './types/User';
 import { Post } from './types/Post';
-import { useAppDispatch, useAppSelector } from './app/hooks';
-import { postsAsync } from './features/postsSlice';
+import { NewUserForm } from './components/NewUserForm';
+import { useAddNewUserMutation, useEditUserMutation } from './api/usersApi';
+import { useGetUserPostsQuery } from './api/postsApi';
+import { EditUserForm } from './components/EditUserForm';
 
 export const App: React.FC = () => {
-  const { posts, status } = useAppSelector(state => state.posts);
-  const dispatch = useAppDispatch();
-
+  const [addNewUser] = useAddNewUserMutation();
+  const [editUser] = useEditUserMutation();
   const [author, setAuthor] = useState<User | null>(null);
+  const {
+    data: posts,
+    isLoading,
+    isSuccess,
+    isError,
+  } = useGetUserPostsQuery(author?.id || 0);
+
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
-
-  useEffect(() => {
-    setSelectedPost(null);
-
-    if (author) {
-      dispatch(postsAsync(author.id));
-    }
-  }, [author, dispatch]);
+  const [visible, setVisible] = useState(false);
 
   return (
     <main className="section">
@@ -35,31 +36,54 @@ export const App: React.FC = () => {
           <div className="tile is-parent">
             <div className="tile is-child box is-success">
               <div className="block">
+                <NewUserForm onSubmit={addNewUser} />
+              </div>
+
+              <div className="block">
                 <UserSelector value={author} onChange={setAuthor} />
               </div>
 
               <div className="block" data-cy="MainContent">
+                {author && (
+                  <button
+                    type="button"
+                    className={classNames('button', 'is-link')}
+                    onClick={() => setVisible(true)}
+                  >
+                    Edit User
+                  </button>
+                )}
+
+                {author && visible && (
+                  <EditUserForm authorId={author.id || 0} onSubmit={editUser} />
+                )}
+
                 {!author && <p data-cy="NoSelectedUser">No user selected</p>}
 
-                {author && status === 'loading' && <Loader />}
+                {author && isLoading && <Loader />}
 
-                {author && status !== 'loading' && status === 'failed' && (
+                {author && isError && (
                   <div
                     className="notification is-danger"
                     data-cy="PostsLoadingError"
                   >
-                    Something went wrong!
+                    Somthing wrong!
                   </div>
                 )}
 
-                {author && status === 'idle' && !posts.length && (
-                  <div className="notification is-warning" data-cy="NoPostsYet">
-                    No posts yet
-                  </div>
+                {author &&
+                  !isLoading &&
+                  !isError &&
+                  !isSuccess &&
+                  !(posts || []).length && (
+                    <div className="notification" data-cy="NoPostsYet">
+                      No posts yet
+                    </div>
                 )}
 
-                {author && status === 'idle' && !!posts.length && (
+                {author && isSuccess && !!posts.length && (
                   <PostsList
+                    author={author}
                     posts={posts}
                     selectedPostId={selectedPost?.id}
                     onPostSelected={setSelectedPost}

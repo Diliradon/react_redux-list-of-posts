@@ -1,45 +1,29 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Loader } from './Loader';
-import { NewCommentForm } from './NewCommentForm';
 
 import { Post } from '../types/Post';
-import { CommentData } from '../types/Comment';
-import { useAppDispatch, useAppSelector } from '../app/hooks';
 import {
-  commentsAsync,
-  addNewCommentAsync,
-  deleteCommentAsync,
-} from '../features/commentsSlice';
+  useAddNewPostCommentMutation,
+  useDeleteCommentMutation,
+  useGetPostCommentsQuery,
+} from '../api/commenrtApi';
+import { NewCommentForm } from './NewCommentForm';
 
 type Props = {
   post: Post;
 };
 
 export const PostDetails: React.FC<Props> = ({ post }) => {
-  const dispatch = useAppDispatch();
-  const { comments, status } = useAppSelector(state => state.comments);
+  const {
+    data: comments,
+    isLoading,
+    isError,
+    isSuccess,
+  } = useGetPostCommentsQuery(post.id);
+  const [addNewComment] = useAddNewPostCommentMutation();
+  const [deleteComment] = useDeleteCommentMutation();
+
   const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    setVisible(false);
-
-    if (post.id) {
-      dispatch(commentsAsync(post.id));
-    }
-  }, [post.id, dispatch]);
-
-  const addComment = (data: Omit<CommentData, 'postId'>) => {
-    dispatch(
-      addNewCommentAsync({
-        ...data,
-        postId: post.id,
-      }),
-    );
-  };
-
-  const deleteComment = (commentId: number) => {
-    dispatch(deleteCommentAsync(commentId));
-  };
 
   return (
     <div className="content" data-cy="PostDetails">
@@ -50,21 +34,21 @@ export const PostDetails: React.FC<Props> = ({ post }) => {
       </div>
 
       <div className="block">
-        {status.loadComments === 'loading' && <Loader />}
+        {isLoading && <Loader />}
 
-        {status.loadComments === 'failed' && (
+        {!isLoading && isError && (
           <div className="notification is-danger" data-cy="CommentsError">
             Something went wrong
           </div>
         )}
 
-        {status.loadComments === 'idle' && !comments.length && (
+        {!isLoading && !isError && isSuccess && (
           <p className="title is-4" data-cy="NoCommentsMessage">
             No comments yet
           </p>
         )}
 
-        {status.loadComments === 'idle' && !!comments.length && (
+        {!isLoading && !isError && isSuccess && (
           <>
             <p className="title is-4">Comments:</p>
 
@@ -98,7 +82,7 @@ export const PostDetails: React.FC<Props> = ({ post }) => {
           </>
         )}
 
-        {status.loadComments === 'idle' && !visible && (
+        {!isLoading && !isError && !visible && (
           <button
             data-cy="WriteCommentButton"
             type="button"
@@ -109,8 +93,8 @@ export const PostDetails: React.FC<Props> = ({ post }) => {
           </button>
         )}
 
-        {status.loadComments === 'idle' && visible && (
-          <NewCommentForm onSubmit={addComment} />
+        {!isLoading && !isError && visible && (
+          <NewCommentForm postId={post.id} onSubmit={addNewComment} />
         )}
       </div>
     </div>
